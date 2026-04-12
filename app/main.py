@@ -36,6 +36,7 @@ Run
 import logging
 import sys
 import time
+import threading
 from contextlib import asynccontextmanager
 from typing import Optional
 
@@ -81,19 +82,14 @@ state = AppState()
 
 
 # ---------------------------------------------------------------------------
-# Lifespan handler – runs once on startup and once on shutdown
+# Background model training – runs in a separate thread so the HTTP
+# port opens immediately (required by Render's port scanner)
 # ---------------------------------------------------------------------------
 
-@asynccontextmanager
-async def lifespan(app: FastAPI):
-    """
-    FastAPI lifespan context manager.
-    All heavy initialisation (CSV loading, imputation, model training)
-    happens here so that the HTTP server only begins accepting requests
-    after everything is ready.
-    """
+def _train_models_background():
+    """Load data and train models in a background thread."""
     t0 = time.time()
-    logger.info("=== AgriTech platform starting up ===")
+    logger.info("=== AgriTech platform: background model training starting ===")
 
     try:
         # Step 1 – Build master dataset (load + impute + feature-engineer)
@@ -112,10 +108,25 @@ async def lifespan(app: FastAPI):
         logger.info("=== Platform ready in %.1f s ===", elapsed)
 
     except Exception as exc:
-        logger.exception("FATAL: startup failed – %s", exc)
-        # Don't prevent the server from starting; health endpoint will report
-        # the error so operators know to investigate.
+        logger.exception("FATAL: model training failed – %s", exc)
         state.ready = False
+
+
+# ---------------------------------------------------------------------------
+# Lifespan handler – kicks off background training, port opens immediately
+# ---------------------------------------------------------------------------
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    FastAPI lifespan context manager.
+    Starts model training in a background thread so the HTTP server
+    begins accepting requests (and opens the port) immediately.
+    The /health endpoint reports readiness status.
+    """
+    logger.info("=== AgriTech platform starting up ===")
+    training_thread = threading.Thread(target=_train_models_background, daemon=True)
+    training_thread.start()
 
     yield  # Application runs here
 
