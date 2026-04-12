@@ -176,16 +176,16 @@ class YieldPredictor:
         # n_estimators=400 + early stopping gives robust performance without
         # over-fitting to any single region's idiosyncrasies.
         self.model = XGBRegressor(
-            n_estimators      = 400,
-            learning_rate     = 0.05,
-            max_depth         = 6,
-            subsample         = 0.8,
+            n_estimators      = 150,        # Reduced from 400 for memory
+            learning_rate     = 0.08,
+            max_depth         = 4,           # Reduced from 6 for memory
+            subsample         = 0.7,
             colsample_bytree  = 0.8,
-            reg_alpha         = 0.1,    # L1 regularisation
-            reg_lambda        = 1.0,    # L2 regularisation
+            reg_alpha         = 0.1,         # L1 regularisation
+            reg_lambda        = 1.0,         # L2 regularisation
             random_state      = 42,
-            tree_method       = "hist", # Memory-efficient histogram method
-            n_jobs            = -1,
+            tree_method       = "hist",      # Memory-efficient histogram method
+            n_jobs            = 1,           # Single thread to save memory
             verbosity         = 0,
         )
         self.is_fitted = False

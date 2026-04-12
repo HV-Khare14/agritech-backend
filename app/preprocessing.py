@@ -100,9 +100,17 @@ def load_apy() -> pd.DataFrame:
     Load the Agriculture Production & Yield CSV.
     Cleans whitespace from State, District, Season.
     Drops rows with non-positive yield (data errors).
+    Memory-optimised for constrained environments (e.g. Render free tier).
     """
     logger.info("Loading APY yield data …")
-    df = pd.read_csv(APY_FILE, low_memory=False)
+    # Only load columns we actually need to save memory
+    needed_cols = ["State", "District", "Crop", "Season", "Area", "Production", "Yield", "Crop_Year"]
+    try:
+        df = pd.read_csv(APY_FILE, usecols=needed_cols, low_memory=True)
+    except ValueError:
+        # If Crop_Year column doesn't exist, load without it
+        needed_cols = ["State", "District", "Crop", "Season", "Area", "Production", "Yield"]
+        df = pd.read_csv(APY_FILE, usecols=needed_cols, low_memory=True)
     df = _strip_col_names(df)
 
     # Normalise key join columns
@@ -112,9 +120,19 @@ def load_apy() -> pd.DataFrame:
     df["Crop"]     = df["Crop"].astype(str).str.strip()
 
     # Drop obvious data-entry errors
-    df = df[df["Yield"] > 0].copy()
     df["Yield"] = pd.to_numeric(df["Yield"], errors="coerce")
+    df = df[df["Yield"] > 0].copy()
     df.dropna(subset=["Yield"], inplace=True)
+
+    # Use category dtype for string columns to save memory
+    for col in ["State", "District", "Crop", "Season"]:
+        df[col] = df[col].astype("category")
+
+    # Downsample if dataset is too large (keep most recent years)
+    if "Crop_Year" in df.columns and len(df) > 100000:
+        cutoff = df["Crop_Year"].max() - 15  # Keep last 15 years
+        df = df[df["Crop_Year"] >= cutoff].copy()
+        logger.info("Downsampled APY to years >= %d", cutoff)
 
     logger.info("APY loaded: %d rows, %d crops, %d districts",
                 len(df), df["Crop"].nunique(), df["District"].nunique())
