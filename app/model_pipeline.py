@@ -58,9 +58,13 @@ class EncoderStore:
 
     def fit(self, crops: List[str], seasons: List[str], soils: List[str]):
         # Add an UNKNOWN sentinel so unseen values can be handled gracefully
-        self.crop_enc.fit(sorted(set(crops))   + ["UNKNOWN"])
-        self.season_enc.fit(sorted(set(seasons)) + ["UNKNOWN"])
-        self.soil_enc.fit(sorted(set(soils))   + ["UNKNOWN"])
+        # Filter out any NaN / non-string values from the data
+        clean_crops   = [c for c in crops   if isinstance(c, str)]
+        clean_seasons = [s for s in seasons if isinstance(s, str)]
+        clean_soils   = [s for s in soils   if isinstance(s, str)]
+        self.crop_enc.fit(sorted(set(clean_crops))   + ["UNKNOWN"])
+        self.season_enc.fit(sorted(set(clean_seasons)) + ["UNKNOWN"])
+        self.soil_enc.fit(sorted(set(clean_soils))   + ["UNKNOWN"])
         self._fitted = True
 
     def _safe_transform(self, enc: LabelEncoder, value: str) -> int:
