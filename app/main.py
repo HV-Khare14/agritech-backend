@@ -76,6 +76,7 @@ class AppState:
     imd_volatility   = None   # pd.DataFrame
     soil             = None   # pd.DataFrame
     ready            = False
+    error            = None   # str – last training error if any
 
 
 state = AppState()
@@ -108,6 +109,8 @@ def _train_models_background():
         logger.info("=== Platform ready in %.1f s ===", elapsed)
 
     except Exception as exc:
+        import traceback
+        state.error = f"{type(exc).__name__}: {exc}\n{traceback.format_exc()}"
         logger.exception("FATAL: model training failed – %s", exc)
         state.ready = False
 
@@ -226,10 +229,14 @@ async def health_check():
     Health check endpoint.
     Returns whether the ML models are trained and ready to serve requests.
     """
+    status = "ok" if state.ready else ("error" if state.error else "initialising")
+    metrics = mp.yield_predictor.metrics if state.ready else {}
+    if state.error:
+        metrics["error"] = state.error
     return HealthResponse(
-        status          = "ok" if state.ready else "initialising",
+        status          = status,
         models_ready    = state.ready,
-        training_metrics= mp.yield_predictor.metrics if state.ready else {},
+        training_metrics= metrics,
     )
 
 
