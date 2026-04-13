@@ -103,15 +103,14 @@ def load_apy() -> pd.DataFrame:
     Memory-optimised for constrained environments (e.g. Render free tier).
     """
     logger.info("Loading APY yield data …")
-    # Only load columns we actually need to save memory
-    needed_cols = ["State", "District", "Crop", "Season", "Area", "Production", "Yield", "Crop_Year"]
-    try:
-        df = pd.read_csv(APY_FILE, usecols=needed_cols, low_memory=True)
-    except ValueError:
-        # If Crop_Year column doesn't exist, load without it
-        needed_cols = ["State", "District", "Crop", "Season", "Area", "Production", "Yield"]
-        df = pd.read_csv(APY_FILE, usecols=needed_cols, low_memory=True)
+    # Load all columns first, then strip names (CSV has trailing spaces like "District ")
+    df = pd.read_csv(APY_FILE, low_memory=True)
     df = _strip_col_names(df)
+
+    # Now select only columns we need to save memory
+    needed_cols = ["State", "District", "Crop", "Season", "Area", "Production", "Yield", "Crop_Year"]
+    available = [c for c in needed_cols if c in df.columns]
+    df = df[available].copy()
 
     # Normalise key join columns
     df["State"]    = _normalise_str(df["State"])
