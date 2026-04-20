@@ -47,6 +47,10 @@ class CropRecommendationRequest(BaseModel):
                                     default=None,
                                     example="Sandy loam",
                                     description="One of: Sandy loam, Loam, Black, Clay loam")
+    target_season             : Optional[str] = Field(
+                                    default="ALL",
+                                    example="KHARIF",
+                                    description="Target Season (e.g. KHARIF, RABI, ZAID, ALL)")
     current_climate_conditions: Optional[str] = Field(
                                     default=None,
                                     example="Normal monsoon expected",

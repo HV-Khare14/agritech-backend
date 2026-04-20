@@ -38,7 +38,7 @@ handles linear equality constraints natively.
 
 import logging
 from dataclasses import dataclass, field
-from typing import Dict, List, Tuple
+from typing import Dict, List, Tuple, Optional
 
 import numpy as np
 import pandas as pd
@@ -336,6 +336,7 @@ def build_candidates(crops               : List[str],
                      weather_features    : dict,
                      climate_risk_score  : float,
                      soil_type           : str,
+                     target_season       : Optional[str],
                      yield_predictor,
                      climate_risk_scorer,
                      max_candidates      : int = 15) -> List[CropCandidate]:
@@ -350,6 +351,7 @@ def build_candidates(crops               : List[str],
     weather_features   : Dict of weather feature values.
     climate_risk_score : District climate risk (0-100).
     soil_type          : Soil type string.
+    target_season      : Season string to isolate (e.g. KHARIF, RABI, ALL)
     yield_predictor    : Fitted YieldPredictor instance.
     climate_risk_scorer: ClimateRiskScorer instance.
     max_candidates     : Limit total candidates fed to optimiser.
@@ -380,6 +382,10 @@ def build_candidates(crops               : List[str],
 
     for crop in crops[:max_candidates]:
         season        = season_map.get(crop, "KHARIF").strip().upper()
+        
+        if target_season and target_season != "ALL" and season != target_season.upper():
+            continue
+
         var_yield     = float(variance_map.get(crop, 1.0))
         var_yield     = max(var_yield, 0.01)   # Floor to prevent zero-variance
 

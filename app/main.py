@@ -336,17 +336,19 @@ async def crop_recommendation(request: CropRecommendationRequest):
         weather_features   = weather_features,
         climate_risk_score = final_climate_risk,
         soil_type          = soil_type,
+        target_season      = request.target_season,
         yield_predictor    = mp.yield_predictor,
         climate_risk_scorer= mp.climate_risk_scorer,
-        max_candidates     = 15,
+        max_candidates     = 25,
     )
 
     if len(candidates) == 0:
+        season_msg = f" for season '{request.target_season}'" if request.target_season and request.target_season != "ALL" else ""
         raise HTTPException(
             status_code = 422,
             detail      = (
                 f"Could not generate yield predictions for any crops in "
-                f"'{request.district}', '{request.state}'. "
+                f"'{request.district}', '{request.state}'{season_msg}. "
                 "Please verify the state and district names."
             ),
         )
